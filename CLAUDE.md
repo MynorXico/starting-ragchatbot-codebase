@@ -18,9 +18,15 @@ uv sync
 bash run.sh
 # Or manually:
 cd backend && uv run uvicorn app:app --reload --port 8000
+
+# Format code with black
+uv run black .
+
+# Run quality checks (format verification)
+bash scripts/check.sh
 ```
 
-There are no tests, linter, or build steps configured.
+Code is formatted with [black](https://black.readthedocs.io/) (configured in `pyproject.toml`). Run `uv run black .` to format, or `bash scripts/check.sh` to verify formatting without modifying files.
 
 ## Architecture
 

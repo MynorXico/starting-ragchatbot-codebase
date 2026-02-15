@@ -1,4 +1,5 @@
 import sys, os
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
@@ -6,8 +7,8 @@ from unittest.mock import MagicMock, patch, PropertyMock
 from search_tools import ToolManager, CourseSearchTool, CourseOutlineTool
 from vector_store import SearchResults
 
-
 # --- Fixtures ---
+
 
 @pytest.fixture
 def mock_config():
@@ -26,15 +27,18 @@ def mock_config():
 @pytest.fixture
 def rag_system(mock_config):
     """Build a RAGSystem with all heavy dependencies mocked out."""
-    with patch("rag_system.DocumentProcessor") as MockDP, \
-         patch("rag_system.VectorStore") as MockVS, \
-         patch("rag_system.AIGenerator") as MockAI, \
-         patch("rag_system.SessionManager") as MockSM:
+    with (
+        patch("rag_system.DocumentProcessor") as MockDP,
+        patch("rag_system.VectorStore") as MockVS,
+        patch("rag_system.AIGenerator") as MockAI,
+        patch("rag_system.SessionManager") as MockSM,
+    ):
 
         # Configure mock vector store for tool registration
         mock_vs_instance = MockVS.return_value
 
         from rag_system import RAGSystem
+
         system = RAGSystem(mock_config)
 
         yield system, {
@@ -46,6 +50,7 @@ def rag_system(mock_config):
 
 
 # --- RAGSystem registration tests ---
+
 
 class TestToolRegistration:
 
@@ -66,6 +71,7 @@ class TestToolRegistration:
 
 
 # --- RAGSystem.query() tests ---
+
 
 class TestRAGSystemQuery:
 
@@ -110,7 +116,9 @@ class TestRAGSystemQuery:
     def test_query_with_session_passes_history(self, rag_system):
         system, mocks = rag_system
         mocks["ai_generator"].generate_response.return_value = "answer"
-        mocks["session_manager"].get_conversation_history.return_value = "User: hi\nAssistant: hello"
+        mocks["session_manager"].get_conversation_history.return_value = (
+            "User: hi\nAssistant: hello"
+        )
 
         system.query("follow up question", session_id="session_1")
 
@@ -150,6 +158,7 @@ class TestRAGSystemQuery:
 
 # --- End-to-end tool execution simulation ---
 
+
 class TestToolExecutionFlow:
 
     def test_search_tool_executes_via_manager(self, rag_system):
@@ -158,14 +167,14 @@ class TestToolExecutionFlow:
 
         mock_vs.search.return_value = SearchResults(
             documents=["content about MCP"],
-            metadata=[{"course_title": "MCP Course", "lesson_number": 1, "chunk_index": 0}],
+            metadata=[
+                {"course_title": "MCP Course", "lesson_number": 1, "chunk_index": 0}
+            ],
             distances=[0.1],
         )
         mock_vs.get_lesson_link.return_value = "https://example.com/l1"
 
-        result = system.tool_manager.execute_tool(
-            "search_course_content", query="MCP"
-        )
+        result = system.tool_manager.execute_tool("search_course_content", query="MCP")
 
         assert "MCP Course" in result
         assert "content about MCP" in result

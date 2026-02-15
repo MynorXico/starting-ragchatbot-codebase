@@ -1,4 +1,5 @@
 import sys, os
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
@@ -6,8 +7,8 @@ from unittest.mock import MagicMock, patch
 from vector_store import SearchResults
 from search_tools import CourseSearchTool, CourseOutlineTool, ToolManager
 
-
 # --- Fixtures ---
+
 
 @pytest.fixture
 def mock_vector_store():
@@ -35,9 +36,12 @@ def sample_search_results():
 
 # --- CourseSearchTool.execute() tests ---
 
+
 class TestCourseSearchToolExecute:
 
-    def test_execute_returns_formatted_results(self, search_tool, mock_vector_store, sample_search_results):
+    def test_execute_returns_formatted_results(
+        self, search_tool, mock_vector_store, sample_search_results
+    ):
         mock_vector_store.search.return_value = sample_search_results
 
         result = search_tool.execute(query="tool use")
@@ -49,7 +53,9 @@ class TestCourseSearchToolExecute:
             query="tool use", course_name=None, lesson_number=None
         )
 
-    def test_execute_with_course_filter(self, search_tool, mock_vector_store, sample_search_results):
+    def test_execute_with_course_filter(
+        self, search_tool, mock_vector_store, sample_search_results
+    ):
         mock_vector_store.search.return_value = sample_search_results
 
         search_tool.execute(query="agents", course_name="AI Fundamentals")
@@ -58,7 +64,9 @@ class TestCourseSearchToolExecute:
             query="agents", course_name="AI Fundamentals", lesson_number=None
         )
 
-    def test_execute_with_lesson_filter(self, search_tool, mock_vector_store, sample_search_results):
+    def test_execute_with_lesson_filter(
+        self, search_tool, mock_vector_store, sample_search_results
+    ):
         mock_vector_store.search.return_value = sample_search_results
 
         search_tool.execute(query="agents", lesson_number=2)
@@ -68,7 +76,9 @@ class TestCourseSearchToolExecute:
         )
 
     def test_execute_with_search_error(self, search_tool, mock_vector_store):
-        mock_vector_store.search.return_value = SearchResults.empty("Search error: connection failed")
+        mock_vector_store.search.return_value = SearchResults.empty(
+            "Search error: connection failed"
+        )
 
         result = search_tool.execute(query="anything")
 
@@ -83,7 +93,9 @@ class TestCourseSearchToolExecute:
 
         assert "No relevant content found" in result
 
-    def test_execute_empty_results_includes_filter_info(self, search_tool, mock_vector_store):
+    def test_execute_empty_results_includes_filter_info(
+        self, search_tool, mock_vector_store
+    ):
         mock_vector_store.search.return_value = SearchResults(
             documents=[], metadata=[], distances=[]
         )
@@ -93,7 +105,9 @@ class TestCourseSearchToolExecute:
         assert "course 'MCP'" in result
         assert "lesson 3" in result
 
-    def test_execute_populates_last_sources(self, search_tool, mock_vector_store, sample_search_results):
+    def test_execute_populates_last_sources(
+        self, search_tool, mock_vector_store, sample_search_results
+    ):
         mock_vector_store.search.return_value = sample_search_results
 
         search_tool.execute(query="tool use")
@@ -102,7 +116,9 @@ class TestCourseSearchToolExecute:
         assert search_tool.last_sources[0]["text"] == "AI Fundamentals - Lesson 2"
         assert search_tool.last_sources[0]["url"] == "https://example.com/lesson1"
 
-    def test_execute_resets_sources_on_error(self, search_tool, mock_vector_store, sample_search_results):
+    def test_execute_resets_sources_on_error(
+        self, search_tool, mock_vector_store, sample_search_results
+    ):
         # First call populates sources
         mock_vector_store.search.return_value = sample_search_results
         search_tool.execute(query="tool use")
@@ -124,6 +140,7 @@ class TestCourseSearchToolExecute:
 
 
 # --- ToolManager tests ---
+
 
 class TestToolManager:
 

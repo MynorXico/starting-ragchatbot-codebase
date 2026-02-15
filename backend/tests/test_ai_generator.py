@@ -1,12 +1,13 @@
 import sys, os
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
 from unittest.mock import MagicMock, patch, call
 from ai_generator import AIGenerator
 
-
 # --- Helpers to build mock Anthropic response objects ---
+
 
 def make_text_block(text):
     block = MagicMock()
@@ -33,6 +34,7 @@ def make_response(content_blocks, stop_reason="end_turn"):
 
 # --- Fixtures ---
 
+
 @pytest.fixture
 def generator():
     with patch("ai_generator.anthropic") as mock_anthropic:
@@ -41,6 +43,7 @@ def generator():
 
 
 # --- Tests ---
+
 
 class TestDirectResponse:
 
@@ -114,15 +117,17 @@ class TestToolExecution:
         tool_manager.execute_tool.return_value = "tool output"
 
         tool_response = make_response(
-            [make_tool_use_block("search_course_content", {"query": "test"}, tool_id="call_abc")],
+            [
+                make_tool_use_block(
+                    "search_course_content", {"query": "test"}, tool_id="call_abc"
+                )
+            ],
             stop_reason="tool_use",
         )
         final_response = make_response([make_text_block("final")])
         gen.client.messages.create.side_effect = [tool_response, final_response]
 
-        gen.generate_response(
-            query="q", tools=[{}], tool_manager=tool_manager
-        )
+        gen.generate_response(query="q", tools=[{}], tool_manager=tool_manager)
 
         # The second API call should have the tool result in messages
         second_call_kwargs = gen.client.messages.create.call_args_list[1][1]
@@ -181,30 +186,54 @@ class TestMultiRoundToolCalling:
 
         # Round 1: Claude calls get_course_outline
         round1_response = make_response(
-            [make_tool_use_block("get_course_outline", {"course_name": "MCP"}, tool_id="call_1")],
+            [
+                make_tool_use_block(
+                    "get_course_outline", {"course_name": "MCP"}, tool_id="call_1"
+                )
+            ],
             stop_reason="tool_use",
         )
         # Round 2: Claude calls search_course_content
         round2_response = make_response(
-            [make_tool_use_block("search_course_content", {"query": "Agents"}, tool_id="call_2")],
+            [
+                make_tool_use_block(
+                    "search_course_content", {"query": "Agents"}, tool_id="call_2"
+                )
+            ],
             stop_reason="tool_use",
         )
         # Final synthesis (post-loop, no tools)
         final_response = make_response(
-            [make_text_block("Lesson 4 of MCP covers Agents. Other courses also discuss this.")]
+            [
+                make_text_block(
+                    "Lesson 4 of MCP covers Agents. Other courses also discuss this."
+                )
+            ]
         )
-        gen.client.messages.create.side_effect = [round1_response, round2_response, final_response]
+        gen.client.messages.create.side_effect = [
+            round1_response,
+            round2_response,
+            final_response,
+        ]
 
         tools = [{"name": "get_course_outline"}, {"name": "search_course_content"}]
-        result = gen.generate_response(query="q", tools=tools, tool_manager=tool_manager)
+        result = gen.generate_response(
+            query="q", tools=tools, tool_manager=tool_manager
+        )
 
         # Both tools should have been executed
         assert tool_manager.execute_tool.call_count == 2
-        tool_manager.execute_tool.assert_any_call("get_course_outline", course_name="MCP")
-        tool_manager.execute_tool.assert_any_call("search_course_content", query="Agents")
+        tool_manager.execute_tool.assert_any_call(
+            "get_course_outline", course_name="MCP"
+        )
+        tool_manager.execute_tool.assert_any_call(
+            "search_course_content", query="Agents"
+        )
         # 3 API calls total
         assert gen.client.messages.create.call_count == 3
-        assert result == "Lesson 4 of MCP covers Agents. Other courses also discuss this."
+        assert (
+            result == "Lesson 4 of MCP covers Agents. Other courses also discuss this."
+        )
 
     def test_max_rounds_forces_synthesis_without_tools(self, generator):
         """After max_tool_rounds of tool calls, the final API call should NOT include tools."""
@@ -215,17 +244,27 @@ class TestMultiRoundToolCalling:
 
         # Both rounds return tool_use
         round1 = make_response(
-            [make_tool_use_block("search_course_content", {"query": "a"}, tool_id="c1")],
+            [
+                make_tool_use_block(
+                    "search_course_content", {"query": "a"}, tool_id="c1"
+                )
+            ],
             stop_reason="tool_use",
         )
         round2 = make_response(
-            [make_tool_use_block("search_course_content", {"query": "b"}, tool_id="c2")],
+            [
+                make_tool_use_block(
+                    "search_course_content", {"query": "b"}, tool_id="c2"
+                )
+            ],
             stop_reason="tool_use",
         )
         synthesis = make_response([make_text_block("synthesized")])
         gen.client.messages.create.side_effect = [round1, round2, synthesis]
 
-        result = gen.generate_response(query="q", tools=[{"name": "t"}], tool_manager=tool_manager)
+        result = gen.generate_response(
+            query="q", tools=[{"name": "t"}], tool_manager=tool_manager
+        )
 
         # The 3rd (final) API call should NOT have tools
         final_call_kwargs = gen.client.messages.create.call_args_list[2][1]
@@ -248,7 +287,9 @@ class TestMultiRoundToolCalling:
         round2 = make_response([make_text_block("answer")])
         gen.client.messages.create.side_effect = [round1, round2]
 
-        gen.generate_response(query="q", tools=[{"name": "t"}], tool_manager=tool_manager)
+        gen.generate_response(
+            query="q", tools=[{"name": "t"}], tool_manager=tool_manager
+        )
 
         # The second API call should include tools (Claude could have called another)
         second_call_kwargs = gen.client.messages.create.call_args_list[1][1]
@@ -294,7 +335,11 @@ class TestExceptionHandling:
         tool_manager.execute_tool.side_effect = RuntimeError("Tool crashed")
 
         tool_response = make_response(
-            [make_tool_use_block("search_course_content", {"query": "x"}, tool_id="call_err")],
+            [
+                make_tool_use_block(
+                    "search_course_content", {"query": "x"}, tool_id="call_err"
+                )
+            ],
             stop_reason="tool_use",
         )
         # After error, Claude synthesizes a graceful response
@@ -303,9 +348,7 @@ class TestExceptionHandling:
         )
         gen.client.messages.create.side_effect = [tool_response, graceful_response]
 
-        result = gen.generate_response(
-            query="q", tools=[{}], tool_manager=tool_manager
-        )
+        result = gen.generate_response(query="q", tools=[{}], tool_manager=tool_manager)
 
         # Should return Claude's graceful response, not raise
         assert result == "I was unable to retrieve that information."
