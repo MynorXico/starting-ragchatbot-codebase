@@ -30,6 +30,9 @@ function setupEventListeners() {
     });
     
     
+    // New Chat button
+    document.getElementById('newChatButton').addEventListener('click', startNewChat);
+
     // Suggested questions
     document.querySelectorAll('.suggested-item').forEach(button => {
         button.addEventListener('click', (e) => {
@@ -122,10 +125,18 @@ function addMessage(content, type, sources = null, isWelcome = false) {
     let html = `<div class="message-content">${displayContent}</div>`;
     
     if (sources && sources.length > 0) {
+        const sourcesHtml = sources.map(source => {
+            const text = escapeHtml(typeof source === 'string' ? source : source.text);
+            const url = typeof source === 'object' && source.url ? source.url : null;
+            if (url) {
+                return `<a class="source-chip" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+            }
+            return `<span class="source-chip">${text}</span>`;
+        }).join('');
         html += `
             <details class="sources-collapsible">
                 <summary class="sources-header">Sources</summary>
-                <div class="sources-content">${sources.join(', ')}</div>
+                <div class="sources-content">${sourcesHtml}</div>
             </details>
         `;
     }
@@ -150,6 +161,15 @@ async function createNewSession() {
     currentSessionId = null;
     chatMessages.innerHTML = '';
     addMessage('Welcome to the Course Materials Assistant! I can help you with questions about courses, lessons and specific content. What would you like to know?', 'assistant', null, true);
+}
+
+function startNewChat() {
+    if (currentSessionId) {
+        fetch(`${API_URL}/sessions/${currentSessionId}`, {
+            method: 'DELETE'
+        }).catch(() => {});
+    }
+    createNewSession();
 }
 
 // Load course statistics

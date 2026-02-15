@@ -100,11 +100,13 @@ class CourseSearchTool(Tool):
                 header += f" - Lesson {lesson_num}"
             header += "]"
             
-            # Track source for the UI
-            source = course_title
+            # Track source for the UI (with lesson link URL if available)
+            source_text = course_title
+            url = None
             if lesson_num is not None:
-                source += f" - Lesson {lesson_num}"
-            sources.append(source)
+                source_text += f" - Lesson {lesson_num}"
+                url = self.store.get_lesson_link(course_title, lesson_num)
+            sources.append({"text": source_text, "url": url})
             
             formatted.append(f"{header}\n{doc}")
         
@@ -112,6 +114,62 @@ class CourseSearchTool(Tool):
         self.last_sources = sources
         
         return "\n\n".join(formatted)
+
+class CourseOutlineTool(Tool):
+    """Tool for retrieving course outlines with lesson lists"""
+
+    def __init__(self, vector_store: VectorStore):
+        self.store = vector_store
+        self.last_sources = []
+
+    def get_tool_definition(self) -> Dict[str, Any]:
+        return {
+            "name": "get_course_outline",
+            "description": "Get the outline of a course including its title, link, and complete list of lessons. Use this for questions about course structure, what lessons a course contains, or course overview.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "course_name": {
+                        "type": "string",
+                        "description": "The course name or partial name to look up (e.g. 'MCP', 'computer use', 'Introduction')"
+                    }
+                },
+                "required": ["course_name"]
+            }
+        }
+
+    def execute(self, course_name: str) -> str:
+        outline = self.store.get_course_outline(course_name)
+
+        if not outline:
+            return f"No course found matching '{course_name}'."
+
+        self.last_sources = [{
+            "text": outline["title"],
+            "url": outline.get("course_link")
+        }]
+
+        return self._format_outline(outline)
+
+    def _format_outline(self, outline: Dict[str, Any]) -> str:
+        parts = []
+        parts.append(f"Course Title: {outline['title']}")
+
+        if outline.get("course_link"):
+            parts.append(f"Course Link: {outline['course_link']}")
+
+        lessons = outline.get("lessons", [])
+        parts.append(f"Total Lessons: {len(lessons)}")
+
+        if lessons:
+            parts.append("\nLessons:")
+            for lesson in lessons:
+                lesson_num = lesson.get("lesson_number", "?")
+                lesson_title = lesson.get("lesson_title", "Untitled")
+                parts.append(f"  Lesson {lesson_num}: {lesson_title}")
+
+        return "\n".join(parts)
+
 
 class ToolManager:
     """Manages available tools for the AI"""
@@ -140,12 +198,12 @@ class ToolManager:
         return self.tools[tool_name].execute(**kwargs)
     
     def get_last_sources(self) -> list:
-        """Get sources from the last search operation"""
-        # Check all tools for last_sources attribute
+        """Get sources from all tools that were used in the last operation"""
+        all_sources = []
         for tool in self.tools.values():
             if hasattr(tool, 'last_sources') and tool.last_sources:
-                return tool.last_sources
-        return []
+                all_sources.extend(tool.last_sources)
+        return all_sources
 
     def reset_sources(self):
         """Reset sources from all tools that track sources"""

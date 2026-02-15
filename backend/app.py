@@ -40,10 +40,15 @@ class QueryRequest(BaseModel):
     query: str
     session_id: Optional[str] = None
 
+class Source(BaseModel):
+    """Model for a source citation with optional URL"""
+    text: str
+    url: Optional[str] = None
+
 class QueryResponse(BaseModel):
     """Response model for course queries"""
     answer: str
-    sources: List[str]
+    sources: List[Source]
     session_id: str
 
 class CourseStats(BaseModel):
@@ -67,7 +72,7 @@ async def query_documents(request: QueryRequest):
         
         return QueryResponse(
             answer=answer,
-            sources=sources,
+            sources=[Source(**s) if isinstance(s, dict) else Source(text=s) for s in sources],
             session_id=session_id
         )
     except Exception as e:
@@ -84,6 +89,14 @@ async def get_course_stats():
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/sessions/{session_id}")
+async def delete_session(session_id: str):
+    """Delete a conversation session and free its resources"""
+    deleted = rag_system.session_manager.delete_session(session_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"status": "ok", "session_id": session_id}
 
 @app.on_event("startup")
 async def startup_event():

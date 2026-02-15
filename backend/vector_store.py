@@ -115,6 +115,32 @@ class VectorStore:
         
         return None
     
+    def get_course_outline(self, course_name: str) -> Optional[Dict[str, Any]]:
+        """Get course outline by fuzzy course name, including lesson list."""
+        import json
+
+        course_title = self._resolve_course_name(course_name)
+        if not course_title:
+            return None
+
+        try:
+            results = self.course_catalog.get(ids=[course_title])
+            if results and results['metadatas'] and results['metadatas'][0]:
+                metadata = results['metadatas'][0]
+                lessons = []
+                if metadata.get('lessons_json'):
+                    lessons = json.loads(metadata['lessons_json'])
+                return {
+                    "title": metadata.get("title", course_title),
+                    "instructor": metadata.get("instructor"),
+                    "course_link": metadata.get("course_link"),
+                    "lessons": lessons
+                }
+        except Exception as e:
+            print(f"Error getting course outline: {e}")
+
+        return None
+
     def _build_filter(self, course_title: Optional[str], lesson_number: Optional[int]) -> Optional[Dict]:
         """Build ChromaDB filter from search parameters"""
         if not course_title and lesson_number is None:
